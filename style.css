@@ -1,13 +1,23 @@
+:root {
+    /* 青绿色调颜色变量 */
+     --teal-900: #003d1a; /* 深色（更暗） */
+     --teal-700: #005826; /* 主色（用户指定） */
+     --teal-500: #137f54; /* 强调色（较亮） */
+     --teal-300: #3ab788; /* 次强调（更亮） */
+     --bg: #F4FBF9; /* 页面背景（带微绿） */
+     --text: #043029; /* 正文文本（深） */
+}
+
 body {
     font-family: "Source Sans Pro", "Microsoft YaHei", sans-serif;
     margin: 0;
     padding: 0;
-    background: #F7F9FC;
-    color: #333;
+    background: var(--bg);
+    color: var(--text);
 }
 
 header {
-    background: #003366;
+    background: var(--teal-900);
     padding: 20px 40px;
     color: #fff;
 }
@@ -18,7 +28,7 @@ header h1 {
 }
 
 nav {
-    background: #2A4B8D;
+    background: var(--teal-700);
     padding: 10px 40px;
 }
 
@@ -27,9 +37,11 @@ nav a {
     margin-right: 25px;
     text-decoration: none;
     font-size: 16px;
+    transition: color 160ms ease, opacity 160ms ease;
 }
 
 nav a:hover {
+    color: var(--teal-300);
     text-decoration: underline;
 }
 
@@ -38,13 +50,13 @@ section {
 }
 
 h2 {
-    color: #003366;
-    border-left: 5px solid #CC9933;
+    color: var(--teal-700);
+    border-left: 5px solid var(--teal-500);
     padding-left: 12px;
 }
 
 .footer {
-    background: #003366;
+    background: var(--teal-900);
     color: #fff;
     text-align: center;
     padding: 20px;
@@ -69,5 +81,14 @@ h2 {
 .publication-video figcaption {
     margin-top: 0.5em;
     text-align: center;
-    color: #444;
+    color: var(--teal-700);
+}
+
+/* 全局链接样式（除导航在 nav a 中覆盖） */
+a {
+    color: var(--teal-700);
+}
+
+a:hover {
+    color: var(--teal-500);
 }
