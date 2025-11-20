@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>视频库</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body{font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding:20px}
+    h1{margin-bottom:8px}
+    #player-container{margin-bottom:16px}
+    #video-list ul{list-style:none;padding:0}
+    #video-list li{margin:6px 0}
+    #video-list a{color:#0366d6;text-decoration:none}
+    #video-list a.playing{font-weight:700;color:#e44}
+    .video-grid{display:flex;flex-wrap:wrap;gap:16px}
+    .video-item{width:220px}
+    .video-item img{width:100%;height:auto;border-radius:6px;background:#f3f3f3}
+    .video-title{margin-top:6px;word-break:break-word}
+    .folder{margin-bottom:18px}
+    .folder-controls{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    .folder-controls button{padding:6px 10px;border-radius:6px;border:1px solid #0366d6;background:#0366d6;color:#fff;cursor:pointer}
+    .video-grid.collapsed{overflow:hidden;transition:max-height 280ms ease}
+    @media(max-width:900px){.video-grid{flex-direction:column}.video-item{width:100%}}
+  </style>
+</head>
+<body>
+  <h1>视频库</h1>
+  <section id="video-list">正在加载视频列表…</section>
+
+  <script>
+    async function loadVideos() {
+      try {
+        const res = await fetch('video/list.json', {cache:'no-cache'});
+        if (!res.ok) throw new Error('状态 ' + res.status);
+        const data = await res.json();
+        const container = document.getElementById('video-list');
+        container.innerHTML = '';
+
+        // 支持两种后端格式：
+        // 1) 对象按文件夹分组 {".":[{name,path,thumb},...]}
+        // 2) 数组 [{file,thumb}, ...] 或 ["a.mp4", ...]
+        if (Array.isArray(data)) {
+          const files = data.map(it => (typeof it === 'string') ? {file: it, thumb: 'data/' + it.replace(/\.[^.]+$/, '') + '.jpg'} : {file: it.file || it.name, thumb: it.thumb || ('data/' + (it.file || it.name).replace(/\.[^.]+$/, '') + '.jpg')});
+          renderFolder('.', files, container);
+        } else {
+          // 多目录：将每个目录单独渲染为一组（每组默认折叠为一行）
+          for (const folder in data) {
+            const files = data[folder];
+            const normalized = files.map(it => {
+              if (typeof it === 'string') return {file: it, thumb: 'data/' + it.replace(/\.[^.]+$/, '') + '.jpg'};
+              return {file: it.file || it.name, thumb: it.thumb || ('data/' + (it.file || it.name).replace(/\.[^.]+$/, '') + '.jpg')};
+            });
+            renderFolder(folder, normalized, container);
+          }
+        }
+      } catch (err) {
+        const el = document.getElementById('video-list');
+        el.textContent = '加载列表出错：' + err.message;
+      }
+    }
+
+    function renderFiles(files, container) {
+      files.forEach(f => {
+        const div = document.createElement('div');
+        div.className = 'video-item';
+
+        const a = document.createElement('a');
+        a.href = encodeURI('video/' + f.file);
+        a.target = '_blank';
+
+        const img = document.createElement('img');
+        img.src = encodeURI('video/' + f.thumb);
+        // 只显示文件名，去掉前面的路径（支持 '/' 和 '\\'）
+        const basename = (f.file || '').replace(/\\/g, '/').split('/').pop();
+        img.alt = basename;
+        a.appendChild(img);
+
+        const title = document.createElement('div');
+        title.className = 'video-title';
+        title.title = basename;
+        title.textContent = basename;
+
+        div.appendChild(a);
+        div.appendChild(title);
+        container.appendChild(div);
+      });
+    }
+
+    // 将一组文件渲染为可折叠的 folder
+    function renderFolder(folderName, files, container) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'folder';
+
+      const controls = document.createElement('div');
+      controls.className = 'folder-controls';
+      const header = document.createElement('h2');
+      header.style.margin = '0';
+      header.style.flex = '1';
+      header.textContent = folderName === '.' ? '默认目录' : folderName;
+      const btn = document.createElement('button');
+      btn.textContent = '展开全部';
+      controls.appendChild(header);
+      controls.appendChild(btn);
+      wrapper.appendChild(controls);
+
+      const grid = document.createElement('div');
+      grid.className = 'video-grid collapsed';
+      wrapper.appendChild(grid);
+      container.appendChild(wrapper);
+
+      renderFiles(files, grid);
+
+      // 等待图片加载完成再测量首行高度
+      const imgs = grid.querySelectorAll('img');
+      const waitImgs = Array.from(imgs).map(img => img.complete ? Promise.resolve() : new Promise(r => img.onload = r));
+      Promise.all(waitImgs).then(() => {
+        const h = getFirstRowHeight(grid) || 220;
+        grid.dataset.firstRowHeight = String(h);
+        grid.style.maxHeight = h + 'px';
+      }).catch(() => {
+        const h = getFirstRowHeight(grid) || 220;
+        grid.dataset.firstRowHeight = String(h);
+        grid.style.maxHeight = h + 'px';
+      });
+
+      let expanded = false;
+      btn.addEventListener('click', () => {
+        expanded = !expanded;
+        if (expanded) {
+          grid.style.maxHeight = 'none';
+          btn.textContent = '折叠';
+          grid.classList.remove('collapsed');
+        } else {
+          const h = parseInt(grid.dataset.firstRowHeight || '220', 10);
+          grid.style.maxHeight = h + 'px';
+          btn.textContent = '展开全部';
+          grid.classList.add('collapsed');
+          // 平滑滚动到当前目录顶部，避免跳动
+          wrapper.scrollIntoView({behavior: 'smooth', block: 'start'});
+        }
+      });
+    }
+
+    // 计算 grid 中首行的高度（像素）
+    function getFirstRowHeight(grid) {
+      const children = grid.children;
+      if (!children || children.length === 0) return 0;
+      const firstTop = children[0].offsetTop;
+      let last = children[0];
+      for (let i = 1; i < children.length; i++) {
+        if (children[i].offsetTop !== firstTop) break;
+        last = children[i];
+      }
+      const height = (last.offsetTop + last.offsetHeight) - firstTop;
+      // 加上一点间隙缓冲
+      return Math.ceil(height + 8);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadVideos);
+  </script>
+</body>
+</html>
