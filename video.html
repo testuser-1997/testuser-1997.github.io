@@ -71,15 +71,17 @@
 
         const img = document.createElement('img');
         img.src = encodeURI('video/' + f.thumb);
-        // 只显示文件名，去掉前面的路径（支持 '/' 和 '\\'）
+        // 只显示文件名，去掉前面的路径（支持 '/' 和 '\'）以及去掉拓展名
         const basename = (f.file || '').replace(/\\/g, '/').split('/').pop();
-        img.alt = basename;
+        const nameNoExt = basename.replace(/\.[^.]+$/, '');
+        img.alt = nameNoExt;
         a.appendChild(img);
 
         const title = document.createElement('div');
         title.className = 'video-title';
-        title.title = basename;
-        title.textContent = basename;
+        // 将显示名称设为无拓展名的文件名
+        title.title = nameNoExt;
+        title.textContent = nameNoExt;
 
         div.appendChild(a);
         div.appendChild(title);
